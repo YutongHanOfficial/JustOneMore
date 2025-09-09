@@ -44,9 +44,6 @@
 
     footer.notes{grid-column:1/-1;margin-top:6px;color:var(--muted);font-size:12px}
 
-    .spinning{animation:spinCoin 1s cubic-bezier(.2,.9,.3,1) forwards}
-    @keyframes spinCoin{0%{transform:rotateY(0)} 100%{transform:rotateY(1800deg)}}
-
     @media (max-width:880px){.card{grid-template-columns:1fr;max-width:720px}.left{order:2}.right{order:1}}
   </style>
 </head>
@@ -109,6 +106,8 @@
       const resetBtn = document.getElementById('resetBtn');
       const autoBtn = document.getElementById('autoBtn');
 
+      let lastRotation = 0;
+
       function fmt(n){return '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}
       function pct(n){return (n>=0?'+':'') + n.toFixed(2) + '%'}
 
@@ -126,16 +125,10 @@
         historyEl.prepend(row);
       }
 
-      async function singleFlip(animate=true){
+      async function singleFlip(){
         flipBtn.disabled = true;
         resetBtn.disabled = true;
         autoBtn.disabled = true;
-
-        if(animate){
-          coin.classList.remove('spinning');
-          void coin.offsetWidth;
-          coin.classList.add('spinning');
-        }
 
         const r = Math.random() < 0.5 ? 'heads' : 'tails';
         const old = balance;
@@ -143,10 +136,10 @@
         balance = Math.round(balance * 100) / 100;
         flips++;
 
-        setTimeout(()=>{
-          if(r === 'heads') coin.style.transform = 'rotateY(0deg)';
-          else coin.style.transform = 'rotateY(180deg)';
-        }, 500);
+        // Spin animation + correct face snap
+        lastRotation += 1800; // 5 full spins
+        const finalRotation = lastRotation + (r === 'tails' ? 180 : 0);
+        coin.style.transform = `rotateY(${finalRotation}deg)`;
 
         return new Promise(resolve => {
           setTimeout(()=>{
@@ -160,15 +153,15 @@
         });
       }
 
-      flipBtn.addEventListener('click',()=> singleFlip(true));
+      flipBtn.addEventListener('click',()=> singleFlip());
       resetBtn.addEventListener('click',()=>{
-        balance = START; flips = 0; historyEl.innerHTML=''; updateUI(); coin.style.transform = 'rotateY(0deg)';
+        balance = START; flips = 0; historyEl.innerHTML=''; updateUI(); coin.style.transform = 'rotateY(0deg)'; lastRotation = 0;
       });
 
       autoBtn.addEventListener('click', async ()=>{
         flipBtn.disabled = true; resetBtn.disabled = true; autoBtn.disabled = true;
         for(let i=0;i<10;i++){
-          await singleFlip(true);
+          await singleFlip();
         }
         flipBtn.disabled = false; resetBtn.disabled = false; autoBtn.disabled = false;
       });
