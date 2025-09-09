@@ -8,6 +8,7 @@
     :root{
       --bg:#0f1724; --card:#0b1220; --accent:#7c3aed; --muted:#9aa4b2; --glass: rgba(255,255,255,0.04);
       --glass-2: rgba(255,255,255,0.03);
+      --danger:#ef4444;
     }
     *{box-sizing:border-box}
     html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial; background:linear-gradient(180deg,#071021 0%, #071b2a 60%);color:#e6eef6}
@@ -23,7 +24,6 @@
     .meta{margin-top:8px;color:var(--muted);font-size:13px}
 
     .coin-wrap{display:flex;align-items:center;justify-content:center;padding:18px;border-radius:12px;background:conic-gradient(from 0deg,var(--accent),#2dd4bf, #f59e0b);height:180px}
-    /* coin */
     .coin{width:120px;height:120px;border-radius:50%;background:radial-gradient(circle at 30% 30%, #fff9, transparent 20%), linear-gradient(180deg,#ffd972 0%, #ffb020 60%);display:grid;place-items:center;position:relative;transform-style:preserve-3d;transition:transform 1s cubic-bezier(.2,.9,.3,1);box-shadow:0 10px 30px rgba(0,0,0,0.6)}
     .coin .face{position:absolute;inset:0;display:grid;place-items:center;font-weight:700;font-size:18px;backface-visibility:hidden}
     .coin .heads{transform:rotateY(0deg)}
@@ -32,6 +32,7 @@
     .controls{display:flex;gap:12px;align-items:center}
     button.btn{background:var(--accent);border:0;color:white;padding:12px 16px;border-radius:10px;font-weight:700;cursor:pointer;box-shadow:0 6px 18px rgba(124,58,237,0.12)}
     button.ghost{background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted);padding:10px 12px;border-radius:10px}
+    button.danger{background:var(--danger);color:white;border:none;padding:10px 12px;border-radius:10px;font-weight:700;cursor:pointer}
     button:disabled{opacity:0.5;cursor:not-allowed}
 
     .right{display:flex;flex-direction:column;gap:14px}
@@ -43,7 +44,6 @@
 
     footer.notes{grid-column:1/-1;margin-top:6px;color:var(--muted);font-size:12px}
 
-    /* animations */
     .spinning{animation:spinCoin 1s cubic-bezier(.2,.9,.3,1) forwards}
     @keyframes spinCoin{0%{transform:rotateY(0)} 100%{transform:rotateY(1800deg)}}
 
@@ -77,15 +77,13 @@
 
         <div class="controls">
           <button id="flipBtn" class="btn">Flip Coin</button>
-          <button id="resetBtn" class="ghost">Reset</button>
+          <button id="resetBtn" class="danger">Reset</button>
           <button id="autoBtn" class="ghost">Auto x10</button>
         </div>
       </div>
 
       <div class="right">
-        <div class="history" id="history">
-          <!-- flips appended here -->
-        </div>
+        <div class="history" id="history"></div>
 
         <div style="display:flex;justify-content:space-between;align-items:center">
           <div class="small">Tip: Expected multiplier per flip = (0.5*1.8 + 0.5*0.5) = 1.15 (positive)</div>
@@ -128,66 +126,54 @@
         historyEl.prepend(row);
       }
 
-      function singleFlip(animate=true){
-        if(flipBtn.disabled) return;
+      async function singleFlip(animate=true){
         flipBtn.disabled = true;
         resetBtn.disabled = true;
         autoBtn.disabled = true;
 
-        // animation
         if(animate){
           coin.classList.remove('spinning');
-          // force reflow
           void coin.offsetWidth;
           coin.classList.add('spinning');
         }
 
-        // pick result (50/50)
         const r = Math.random() < 0.5 ? 'heads' : 'tails';
-        // apply multiplier
         const old = balance;
-        if(r === 'heads') balance = balance * 1.8;
-        else balance = balance * 0.5;
-        // rounding
+        if(r === 'heads') balance *= 1.8; else balance *= 0.5;
         balance = Math.round(balance * 100) / 100;
-        flips += 1;
+        flips++;
 
-        // set coin face to reflect result after animation (halfway)
         setTimeout(()=>{
           if(r === 'heads') coin.style.transform = 'rotateY(0deg)';
           else coin.style.transform = 'rotateY(180deg)';
-        }, 300);
+        }, 500);
 
-        // finish
-        setTimeout(()=>{
-          updateUI();
-          pushHistory(r, old, balance);
-          flipBtn.disabled = false;
-          resetBtn.disabled = false;
-          autoBtn.disabled = false;
-        }, 1000);
+        return new Promise(resolve => {
+          setTimeout(()=>{
+            updateUI();
+            pushHistory(r, old, balance);
+            flipBtn.disabled = false;
+            resetBtn.disabled = false;
+            autoBtn.disabled = false;
+            resolve();
+          }, 1000);
+        });
       }
 
       flipBtn.addEventListener('click',()=> singleFlip(true));
       resetBtn.addEventListener('click',()=>{
-        balance = START; flips = 0; historyEl.innerHTML=''; updateUI();
+        balance = START; flips = 0; historyEl.innerHTML=''; updateUI(); coin.style.transform = 'rotateY(0deg)';
       });
 
       autoBtn.addEventListener('click', async ()=>{
-        if(autoBtn.disabled) return;
         flipBtn.disabled = true; resetBtn.disabled = true; autoBtn.disabled = true;
-        const times = 10;
-        for(let i=0;i<times;i++){
-          singleFlip(true);
-          // wait for one second per flip
-          await new Promise(r=>setTimeout(r, 1200));
+        for(let i=0;i<10;i++){
+          await singleFlip(true);
         }
         flipBtn.disabled = false; resetBtn.disabled = false; autoBtn.disabled = false;
       });
 
-      // init
       updateUI();
-
     })();
   </script>
 </body>
